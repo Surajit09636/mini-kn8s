@@ -9,7 +9,7 @@ import (
 
 	"mini-k8s/auth-service/database"
 	"mini-k8s/auth-service/Handelers"
-	jwtutils "mini-k8s/auth-service/middleware"
+	jwtutils "mini-k8s/pkg/middleware"
 )
 
 func init() {

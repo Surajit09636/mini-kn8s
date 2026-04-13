@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	
-	jwtutils "mini-k8s/auth-service/middleware"
+	jwtutils "mini-k8s/pkg/middleware"
 )
 
 type verifyResponse struct {

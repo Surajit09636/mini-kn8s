@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"mini-k8s/auth-service/database"
-	jwtutils "mini-k8s/auth-service/middleware"
+	jwtutils "mini-k8s/pkg/middleware"
 	"mini-k8s/auth-service/models"
 	passwordutils "mini-k8s/auth-service/utils"
 	"gorm.io/gorm"
@@ -76,7 +76,7 @@ func LoginHandeler(w http.ResponseWriter, r *http.Request){
 	// send the success response with token
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	// send back user_id and token as a bareer token payload
+	// send back user_id and token as a bearer token payload
 	_ = json.NewEncoder(w).Encode(loginResponse{
 		Message: "Login successful",
 		Token: token,

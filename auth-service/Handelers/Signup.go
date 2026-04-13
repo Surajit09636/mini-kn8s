@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"mini-k8s/auth-service/database"
-	jwtutils "mini-k8s/auth-service/middleware"
+	jwtutils "mini-k8s/pkg/middleware"
 	"mini-k8s/auth-service/models"
 	passwordutils "mini-k8s/auth-service/utils"
 
