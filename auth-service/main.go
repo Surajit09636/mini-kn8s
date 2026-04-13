@@ -14,7 +14,9 @@ import (
 
 func init() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		if err := godotenv.Load("../.env"); err != nil {
+			log.Println("No .env file found")
+		}
 	}
 }
 

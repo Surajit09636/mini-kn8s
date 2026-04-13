@@ -3,6 +3,7 @@ package handelers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -88,6 +89,7 @@ func SignupHandeler( w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("✅ New User Signed Up! User ID: %d, Username: %s, Email: %s", user.ID, user.Username, user.Email)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 

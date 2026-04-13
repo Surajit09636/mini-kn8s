@@ -3,6 +3,7 @@ package handelers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"mini-k8s/auth-service/database"
@@ -74,6 +75,7 @@ func LoginHandeler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 	// send the success response with token
+	log.Printf("✅ User Logged In! User ID: %d, Email: %s", user.ID, user.Email)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	// send back user_id and token as a bearer token payload
