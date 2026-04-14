@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -85,6 +86,7 @@ func JWTMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		tokenString := parts[1]
 		claims, err := VerifyToken(tokenString)
 		if err != nil {
+			log.Printf("JWT Error: %v", err)
 			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
 			return
 		}
