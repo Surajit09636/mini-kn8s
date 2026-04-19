@@ -11,8 +11,8 @@ import (
 )
 
 func init(){
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+	if err := godotenv.Load("../.env"); err != nil {
+		log.Println("Warning: Could not load .env file from ../.env (this is fine if running via Docker or if env vars are already set)")
 	}
 }
 

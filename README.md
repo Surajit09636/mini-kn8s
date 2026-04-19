@@ -28,7 +28,7 @@ sequenceDiagram
     Master-->>User: 202 Accepted (Deployment Queued)
 
     Master-)Worker: Dispatches pod definitions via Scheduler (WIP)
-    Worker-)Docker: Pulls image and starts containers (WIP)
+    Worker-)Docker: Pulls image and starts containers via Docker Engine API
 ```
 
 ## 🧩 Active Microservices
@@ -36,7 +36,7 @@ sequenceDiagram
 - **Auth-Service (:`8080`)**: The gateway for identity. Handles user registration, authentication, and securely issues cross-service JWTs backed by PostgreSQL and bcrypt.
 - **Master Node (:`8081`)**: The orchestrator. Currently exposes a fully JWT-protected `/deploy` API waiting to schedule and distribute container workloads. 
 - **Shared Pkg (`pkg/`)**: The shared brain. Contains unified business logic and middleware (like JWT verification) imported directly by both the `auth-service` and the `master` node.
-- **Worker Node (`worker/`)**: *(Coming Soon)* The compute node that will physically host and spin up the Docker containers requested by the master.
+- **Worker Node (`worker/`)**: The compute node that physically hosts and spins up the Docker containers requested by the master. Integrates directly with the Docker Daemon via the official Moby SDK.
 
 ## 🛠️ API Routes
 
@@ -78,10 +78,15 @@ go run main.go
 # Terminal 2: Spin up the Master API Control Plane
 cd master
 go run main.go
+
+# Terminal 3: Spin up the Worker Node
+cd worker
+go run main.go
 ```
 
 ## 📅 Development Journey
 
+- **Day 4 (2026-04-19)**: Integrated the official Docker SDK (Moby API) into the Worker Node. Completed the Master-to-Worker `/deploy` pipeline, allowing the cluster to dynamically pull requested images and orchestrate live containers locally.
 - **Day 3 (2026-04-14)**: Bootstrapped the `Master` node with a secure `/deploy` endpoint. Wired up context sharing, custom logging for the CLI, and cross-folder environment fallbacks to make booting up foolproof.
 - **Day 2 (2026-04-13)**: Restructured the codebase. Extracted the JWT middleware to a shared `pkg/middleware` directory to be consumed dynamically by multiple services. Solidified the `/signup`, `/login`, and `/verify` API flows.
 - **Day 1 (2026-04-12)**: Initial project kickoff. Designed the PostgreSQL schema using GORM and set up the foundation for JWT cryptography and bcrypt password hashing.
