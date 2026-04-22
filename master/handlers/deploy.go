@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	jwtutils "mini-k8s/pkg/middleware"
+	"mini-k8s/master/Schedular"
 )
 
 // DeployPayload represents the JSON sent by the user
@@ -36,47 +37,55 @@ func DeployHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Safety check: ensure at least 1 replicas is spun up if not configured
+	if payload.Replicas <= 0 {
+		payload.Replicas = 1
+	}
+
 	// Just print it 
 	log.Printf("Deploy Request Received")
 	log.Printf("User ID: %d (Email: %s)", claims.UserID, claims.Email)
 	log.Printf("Requested Image: %s", payload.Image)
 	log.Printf("Requsted Replicas: %d", payload.Replicas)
 
-	// Master Worker communication
-	// Default to localhost:8082 if WORKER_URL is not provided in env
-
-	workerURL := os.Getenv("WORKER_URL")
-	if workerURL == "" {
-		workerURL = "http://localhost:8082"
-	}
-
-	// step 1 create the payload for the worker
 	workerPayload := map[string]string{
 		"image": payload.Image,
 	}
 
-	// step:2 Convert to JSON
 	jsonData, err := json.Marshal(workerPayload)
 	if err != nil {
 		http.Error(w, "Failed to marshal worker payload", http.StatusInternalServerError)
 		return
 	}
 
-	// send POST request to the worker's /run endpoint
-	resp, err := http.Post(workerURL+"/run", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Printf("Failed to connect worker: %v", err)
-		http.Error(w, "Failed to forward to worker", http.StatusInternalServerError)
-		return
+	//Introduce a for loop based on the number of replicas
+	for i := 0; i < payload.Replicas; i++ {
+		// Ask the schedular for the next server in the loop
+		workerURL := schedular.GetNextWorker()
+
+		// Fallback local setting if the array in the schedular is empty
+		if workerURL == "" {
+			workerURL = os.Getenv("WORKER_URL")
+			if workerURL == "" {
+				workerURL = "http://localhost:8082"
+			}
+		}
+
+		log.Printf("deploying Replica %d/%d to worker: %s", i+1, payload.Replicas, workerURL)
+
+		// send POST request sequentially or inside a go-routine
+		resp, err := http.Post(workerURL+"/run", "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			log.Printf("failed to connect to worker %s: %v", workerURL, err)
+			continue // if one replicas failed on a node, continue trying to deploy the others
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Response from worker %s on replica %d: %s", workerURL, i+1, string(body))
+		resp.Body.Close()
 	}
-	defer resp.Body.Close()
 
-	// step 4: Read and log the response from the worker
-	body, _ := io.ReadAll(resp.Body)
-	log.Printf("Response from worker: %s", string(body))
-
-	// send a success response back to the original client
-	w.Header().Set("Content-type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte(`{"message": "Deployment request validated by master and forward to worker"}`)) 
+	w.Write([]byte(`{"message": "Deployment request validate by master and forwarded to worker nodes"}`))
 }
