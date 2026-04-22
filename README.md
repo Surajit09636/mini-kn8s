@@ -26,8 +26,12 @@ sequenceDiagram
     Master->>Master: Verify signature & expiration via Shared Pkg
     Master->>Master: Validate Payload (Image, Replicas)
     Master-->>User: 202 Accepted (Deployment Queued)
+    Note over Master,Worker: 3. Dynamic Registration
+    Worker->>Master: POST /register { "url": "http://localhost:8082" }
+    Master->>Master: Adds Worker to Active Scheduling Pool
 
-    Master-)Worker: Dispatches pod definitions via Scheduler (WIP)
+    Note over Master,Worker: 4. Deployment Dispatch
+    Master-)Worker: Distributes workloads via Thread-Safe Round-Robin Scheduler
     Worker-)Docker: Pulls image and starts containers via Docker Engine API
 ```
 
@@ -46,6 +50,7 @@ sequenceDiagram
 | `Auth` | `POST` | `/login` | No | Authenticate and receive a JWT |
 | `Auth` | `GET`  | `/verify` | Yes | Validates token and returns User info |
 | `Master`| `POST` | `/deploy` | Yes | Receives Docker container manifests |
+| `Master`| `POST` | `/register`| No  | Handshake endpoint for new Worker Nodes |
 
 ## 🚀 Getting Started
 
@@ -82,10 +87,15 @@ go run main.go
 # Terminal 3: Spin up the Worker Node
 cd worker
 go run main.go
+
+# Terminal 4: (Optional) Spin up a secondary Worker for load balancing!
+cd worker 
+$env:WORKER_PORT="8083"; go run main.go
 ```
 
 ## 📅 Development Journey
 
+- **Day 5 (2026-04-22)**: Built a dynamic **Round-Robin Scheduler** inside the Master node. Workers now announce their presence via a `/register` handshake on boot with a continuous Goroutine retry loop. Master nodes can now flawlessly load-balance workloads across horizontal worker instances.
 - **Day 4 (2026-04-19)**: Integrated the official Docker SDK (Moby API) into the Worker Node. Completed the Master-to-Worker `/deploy` pipeline, allowing the cluster to dynamically pull requested images and orchestrate live containers locally.
 - **Day 3 (2026-04-14)**: Bootstrapped the `Master` node with a secure `/deploy` endpoint. Wired up context sharing, custom logging for the CLI, and cross-folder environment fallbacks to make booting up foolproof.
 - **Day 2 (2026-04-13)**: Restructured the codebase. Extracted the JWT middleware to a shared `pkg/middleware` directory to be consumed dynamically by multiple services. Solidified the `/signup`, `/login`, and `/verify` API flows.
