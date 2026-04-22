@@ -35,6 +35,7 @@ func main() {
 
 	// 🚀 Protected /deploy route using your shared pkg/middleware
 	mux.HandleFunc("POST /deploy", jwtutils.JWTMiddleware(handlers.DeployHandler))
+	mux.HandleFunc("POST /register", handlers.RegisterNetworkHandler) // no JWT middleware required for this route right now
 
 	log.Printf("Starting Master server on port %s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
