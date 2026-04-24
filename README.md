@@ -25,7 +25,8 @@ sequenceDiagram
 
     Master->>Master: Verify signature & expiration via Shared Pkg
     Master->>Master: Validate Payload (Image, Replicas)
-    Master-->>User: 202 Accepted (Deployment Queued)
+    Master->>DB: Save Deployment Record (Pending)
+    Master-->>User: 202 Accepted (Returns Deployment ID)
     Note over Master,Worker: 3. Dynamic Registration & Health
     Worker->>Master: POST /register { "url": "http://localhost:8082" }
     Master->>Master: Adds Worker to Active Scheduling Pool
@@ -38,6 +39,8 @@ sequenceDiagram
     Note over Master,Worker: 4. Deployment Dispatch
     Master-)Worker: Distributes workloads via Thread-Safe Round-Robin Scheduler
     Worker-)Docker: Pulls image and starts containers via Docker Engine API
+    Worker-->>Master: Returns JSON with Container ID
+    Master->>DB: Save Pod Record (Links Container to Deployment)
 ```
 
 ## 🧩 Active Microservices
@@ -54,7 +57,8 @@ sequenceDiagram
 | `Auth` | `POST` | `/signup` | No | Register a new user |
 | `Auth` | `POST` | `/login` | No | Authenticate and receive a JWT |
 | `Auth` | `GET`  | `/verify` | Yes | Validates token and returns User info |
-| `Master`| `POST` | `/deploy` | Yes | Receives Docker container manifests |
+| `Master`| `POST` | `/deploy` | Yes | Receives Docker container manifests and returns Deployment ID |
+| `Master`| `GET`  | `/deployments` | Yes | Retrieves user's live deployments and running Pod container IDs |
 | `Master`| `POST` | `/register`| No  | Handshake endpoint for new Worker Nodes |
 | `Master`| `POST` | `/heartbeat`| No | Keep-alive ping from active workers |
 
@@ -101,6 +105,7 @@ $env:WORKER_PORT="8083"; go run main.go
 
 ## 📅 Development Journey
 
+- **Day 7 (2026-04-24)**: Implemented **Deployment Tracking & Status API**. The Master node now persists Deployment and Pod state in its own PostgreSQL schema. Workers reply with structured JSON containing Docker IDs, and a new `GET /deployments` endpoint allows users to track their live cluster workloads.
 - **Day 6 (2026-04-23)**: Implemented a self-healing **Worker Health Check & Heartbeat** system. Workers send a heartbeat every 10 seconds, and the Master automatically evicts any dead nodes from the routing pool if they go silent for 30 seconds.
 - **Day 5 (2026-04-22)**: Built a dynamic **Round-Robin Scheduler** inside the Master node. Workers now announce their presence via a `/register` handshake on boot with a continuous Goroutine retry loop. Master nodes can now flawlessly load-balance workloads across horizontal worker instances.
 - **Day 4 (2026-04-19)**: Integrated the official Docker SDK (Moby API) into the Worker Node. Completed the Master-to-Worker `/deploy` pipeline, allowing the cluster to dynamically pull requested images and orchestrate live containers locally.

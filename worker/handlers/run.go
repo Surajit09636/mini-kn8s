@@ -11,7 +11,7 @@ import (
 
 	// Using the newly consolidated moby client
 	"github.com/moby/moby/client"
-	
+
 	"mini-k8s/worker/models"
 )
 
@@ -47,7 +47,7 @@ func RunHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to pull image", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Copy stream to stdout to see download progress in the terminal
 	io.Copy(os.Stdout, pullResponse)
 	pullResponse.Close()
@@ -55,7 +55,7 @@ func RunHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("\n✅ Image pulled successfully. Creating container...")
 
 	// 4. Create the Container configuration
-	createResponse, err := cli.ContainerCreate(ctx, 
+	createResponse, err := cli.ContainerCreate(ctx,
 		client.ContainerCreateOptions{
 			Image: req.Image, // Target image
 		},
@@ -74,10 +74,17 @@ func RunHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 6. Return success back to the Master Node
+	log.Printf("Worker successfully started container! ID: %s", createResponse.ID)
+
+	//Return JSON to Master!
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message":      "success",
+		"container_id": createResponse.ID,
+	})
+
+	// 6. Print success to worker terminal
 	successMsg := fmt.Sprintf("✅ Worker successfully started container!\nContainer ID: %s", createResponse.ID)
 	fmt.Println(successMsg)
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(successMsg))
 }
