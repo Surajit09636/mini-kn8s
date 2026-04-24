@@ -7,6 +7,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"mini-k8s/master/Schedular"
 	"mini-k8s/master/handlers"
 	jwtutils "mini-k8s/pkg/middleware"
 )
@@ -36,6 +37,9 @@ func main() {
 	// 🚀 Protected /deploy route using your shared pkg/middleware
 	mux.HandleFunc("POST /deploy", jwtutils.JWTMiddleware(handlers.DeployHandler))
 	mux.HandleFunc("POST /register", handlers.RegisterNetworkHandler) // no JWT middleware required for this route right now
+	mux.HandleFunc("POST /heartbeat", handlers.HeartbeatHandler)
+
+	go schedular.MonitorHealth()
 
 	log.Printf("Starting Master server on port %s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {

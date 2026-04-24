@@ -39,23 +39,40 @@ func main(){
 	payload := map[string]string{"url": myURL}
 	jsonData, _ := json.Marshal(payload)
 	
-	// Background Goroutine to keep pinging Master until it correctly registers
+	// Background Goroutine to register and then send heartbeats
 	go func() {
+		registered := false
 		for {
-			resp, err := http.Post(masterURL+"/register", "application/json", bytes.NewBuffer(jsonData))
-			if err == nil && resp.StatusCode == http.StatusOK {
-				resp.Body.Close()
-				log.Println("✅ Successfully registered with Master Node!")
-				return // Break out of the loop completely when successful
+			if !registered {
+				resp, err := http.Post(masterURL+"/register", "application/json", bytes.NewBuffer(jsonData))
+				if err == nil && resp.StatusCode == http.StatusOK {
+					resp.Body.Close()
+					log.Println("✅ Successfully registered with Master Node!")
+					registered = true
+				} else {
+					if err != nil {
+						log.Printf("⚠️ Warning: Master Node offline. Retrying registration in 5 seconds...")
+					} else {
+						log.Printf("⚠️ Warning: Got a non-200 status from Master Node (%d). Retrying...", resp.StatusCode)
+						resp.Body.Close()
+					}
+					time.Sleep(5 * time.Second)
+					continue
+				}
 			}
 
-			if err != nil {
-				log.Printf("⚠️ Warning: Master Node offline. Retrying registration in 5 seconds...")
+			// Heartbeat loop once registered
+			time.Sleep(10 * time.Second)
+			resp, err := http.Post(masterURL+"/heartbeat", "application/json", bytes.NewBuffer(jsonData))
+			if err != nil || resp.StatusCode != http.StatusOK {
+				log.Printf("⚠️ Warning: Failed to send heartbeat. Re-registering...")
+				if resp != nil {
+					resp.Body.Close()
+				}
+				registered = false // Fall back to registration mode
 			} else {
-				log.Printf("⚠️ Warning: Got a non-200 status from Master Node (%d). Retrying...", resp.StatusCode)
 				resp.Body.Close()
 			}
-			time.Sleep(5 * time.Second)
 		}
 	}()
 

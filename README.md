@@ -26,9 +26,14 @@ sequenceDiagram
     Master->>Master: Verify signature & expiration via Shared Pkg
     Master->>Master: Validate Payload (Image, Replicas)
     Master-->>User: 202 Accepted (Deployment Queued)
-    Note over Master,Worker: 3. Dynamic Registration
+    Note over Master,Worker: 3. Dynamic Registration & Health
     Worker->>Master: POST /register { "url": "http://localhost:8082" }
     Master->>Master: Adds Worker to Active Scheduling Pool
+    loop Every 10 Seconds
+        Worker->>Master: POST /heartbeat { "url": "http://localhost:8082" }
+        Master->>Master: Updates LastPing timestamp
+    end
+    Master->>Master: Background Loop: Evicts Dead Workers (>30s no ping)
 
     Note over Master,Worker: 4. Deployment Dispatch
     Master-)Worker: Distributes workloads via Thread-Safe Round-Robin Scheduler
@@ -51,6 +56,7 @@ sequenceDiagram
 | `Auth` | `GET`  | `/verify` | Yes | Validates token and returns User info |
 | `Master`| `POST` | `/deploy` | Yes | Receives Docker container manifests |
 | `Master`| `POST` | `/register`| No  | Handshake endpoint for new Worker Nodes |
+| `Master`| `POST` | `/heartbeat`| No | Keep-alive ping from active workers |
 
 ## 🚀 Getting Started
 
@@ -95,6 +101,7 @@ $env:WORKER_PORT="8083"; go run main.go
 
 ## 📅 Development Journey
 
+- **Day 6 (2026-04-23)**: Implemented a self-healing **Worker Health Check & Heartbeat** system. Workers send a heartbeat every 10 seconds, and the Master automatically evicts any dead nodes from the routing pool if they go silent for 30 seconds.
 - **Day 5 (2026-04-22)**: Built a dynamic **Round-Robin Scheduler** inside the Master node. Workers now announce their presence via a `/register` handshake on boot with a continuous Goroutine retry loop. Master nodes can now flawlessly load-balance workloads across horizontal worker instances.
 - **Day 4 (2026-04-19)**: Integrated the official Docker SDK (Moby API) into the Worker Node. Completed the Master-to-Worker `/deploy` pipeline, allowing the cluster to dynamically pull requested images and orchestrate live containers locally.
 - **Day 3 (2026-04-14)**: Bootstrapped the `Master` node with a secure `/deploy` endpoint. Wired up context sharing, custom logging for the CLI, and cross-folder environment fallbacks to make booting up foolproof.

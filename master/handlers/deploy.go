@@ -80,6 +80,9 @@ func DeployHandler(w http.ResponseWriter, r *http.Request) {
 			continue // if one replicas failed on a node, continue trying to deploy the others
 		}
 
+		//Track the task assignment in the schedular
+		schedular.AssignTask(workerURL, payload.Image)
+
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("Response from worker %s on replica %d: %s", workerURL, i+1, string(body))
 		resp.Body.Close()
