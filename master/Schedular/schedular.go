@@ -96,6 +96,25 @@ func AssignTask(workerURL string, image string) {
 	}
 }
 
+func RemoveTask(workerURL string, image string) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	for i, node := range WorkerNodes {
+		if node.URL != workerURL {
+			continue
+		}
+
+		for j, task := range node.Tasks {
+			if task == image {
+				WorkerNodes[i].Tasks = append(node.Tasks[:j], node.Tasks[j+1:]...)
+				log.Printf("[Schedular] Removed task %s from worker %s", image, workerURL)
+				return
+			}
+		}
+	}
+}
+
 //RescheduleTask finds a new healthy node and pushes thetask to it
 func RescheduleTask(image string) {
 	workerURL := GetNextWorker()

@@ -78,6 +78,8 @@ func main(){
 
 	// Your existing server spin-up code...
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /teardown", handlers.TeardownHandler)
+
 	mux.HandleFunc("/run", handlers.RunHandler)
 
 	fmt.Println("Worker ready & listening for jobs on port:", port)

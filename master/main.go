@@ -41,6 +41,8 @@ func main() {
 	})
 
 	// 🚀 Protected routes using your shared pkg/middleware
+	mux.HandleFunc("DELETE /deployments/{id}", jwtutils.JWTMiddleware(handlers.DeleteDeploymentHandler))
+
 	mux.HandleFunc("POST /deploy", jwtutils.JWTMiddleware(handlers.DeployHandler))
 	mux.HandleFunc("GET /deployments", jwtutils.JWTMiddleware(handlers.GetDeploymentStatus))
 	

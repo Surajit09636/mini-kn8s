@@ -41,14 +41,23 @@ sequenceDiagram
     Worker-)Docker: Pulls image and starts containers via Docker Engine API
     Worker-->>Master: Returns JSON with Container ID
     Master->>DB: Save Pod Record (Links Container to Deployment)
+
+    Note over User,Docker: 5. Teardown / Deletion Phase
+    User->>Master: DELETE /deployments/{id} (Bearer Token)
+    Master->>Master: Verify deployment ownership and preload Pods
+    Master-)Worker: POST /teardown { "container_id": "..." }
+    Worker-)Docker: Stop and remove the container via Docker Engine API
+    Worker-->>Master: Returns teardown success
+    Master->>DB: Delete Pod records and Deployment record
+    Master-->>User: 200 OK (Deployment deleted successfully)
 ```
 
 ## 🧩 Active Microservices
 
 - **Auth-Service (:`8080`)**: The gateway for identity. Handles user registration, authentication, and securely issues cross-service JWTs backed by PostgreSQL and bcrypt.
-- **Master Node (:`8081`)**: The orchestrator. Currently exposes a fully JWT-protected `/deploy` API waiting to schedule and distribute container workloads. 
+- **Master Node (:`8081`)**: The orchestrator. Exposes JWT-protected deployment lifecycle APIs including `/deploy`, `/deployments`, and `DELETE /deployments/{id}` for status tracking and teardown.
 - **Shared Pkg (`pkg/`)**: The shared brain. Contains unified business logic and middleware (like JWT verification) imported directly by both the `auth-service` and the `master` node.
-- **Worker Node (`worker/`)**: The compute node that physically hosts and spins up the Docker containers requested by the master. Integrates directly with the Docker Daemon via the official Moby SDK.
+- **Worker Node (`worker/`)**: The compute node that physically hosts and tears down Docker containers requested by the master. Integrates directly with the Docker Daemon via the official Moby SDK.
 
 ## 🛠️ API Routes
 
@@ -59,8 +68,11 @@ sequenceDiagram
 | `Auth` | `GET`  | `/verify` | Yes | Validates token and returns User info |
 | `Master`| `POST` | `/deploy` | Yes | Receives Docker container manifests and returns Deployment ID |
 | `Master`| `GET`  | `/deployments` | Yes | Retrieves user's live deployments and running Pod container IDs |
+| `Master`| `DELETE` | `/deployments/{id}` | Yes | Stops and removes all Pods for a deployment, then deletes its DB records |
 | `Master`| `POST` | `/register`| No  | Handshake endpoint for new Worker Nodes |
 | `Master`| `POST` | `/heartbeat`| No | Keep-alive ping from active workers |
+| `Worker`| `POST` | `/run` | No | Internal endpoint used by Master to pull an image and start a container |
+| `Worker`| `POST` | `/teardown` | No | Internal endpoint used by Master to stop and remove a container |
 
 ## 🚀 Getting Started
 
@@ -79,7 +91,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=your_password
-DB_NAME=mini-kn8s
+DB_NAME=mini-k8s
 DB_SSLMODE=disable
 ```
 
@@ -105,6 +117,7 @@ $env:WORKER_PORT="8083"; go run main.go
 
 ## 📅 Development Journey
 
+- **Day 8 (2026-04-28)**: Implemented the **Teardown / Deletion API**. Users can now call `DELETE /deployments/{id}` on the Master node, which fans out teardown requests to Workers so Docker containers are cleanly stopped and removed before the Deployment and Pod records are deleted from PostgreSQL.
 - **Day 7 (2026-04-24)**: Implemented **Deployment Tracking & Status API**. The Master node now persists Deployment and Pod state in its own PostgreSQL schema. Workers reply with structured JSON containing Docker IDs, and a new `GET /deployments` endpoint allows users to track their live cluster workloads.
 - **Day 6 (2026-04-23)**: Implemented a self-healing **Worker Health Check & Heartbeat** system. Workers send a heartbeat every 10 seconds, and the Master automatically evicts any dead nodes from the routing pool if they go silent for 30 seconds.
 - **Day 5 (2026-04-22)**: Built a dynamic **Round-Robin Scheduler** inside the Master node. Workers now announce their presence via a `/register` handshake on boot with a continuous Goroutine retry loop. Master nodes can now flawlessly load-balance workloads across horizontal worker instances.
